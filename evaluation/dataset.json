@@ -1,0 +1,22 @@
+{
+  "documents": [
+    {"id": "biology", "filename": "biology.md", "text": "# Cell biology\nMitochondria generate ATP through cellular respiration. Chloroplasts use light for photosynthesis."},
+    {"id": "cache", "filename": "cache.txt", "text": "The CACHE-721 diagnostic code means the cache entry has expired. Set the TTL to 45 seconds for the study demo."},
+    {"id": "security", "filename": "security.md", "text": "# Password security\nArgon2 hashes passwords. HttpOnly session cookies prevent JavaScript from reading the cookie. CSRF tokens protect state-changing requests."},
+    {"id": "retrieval", "filename": "retrieval.txt", "text": "Reciprocal Rank Fusion adds 1 divided by constant plus rank for each result list. BM25 matches keywords. Vector retrieval compares embeddings."},
+    {"id": "astronomy", "filename": "astronomy.txt", "text": "The Moon orbits Earth. The Sun is a star. Jupiter is the largest planet in the solar system."},
+    {"id": "chemistry", "filename": "chemistry.txt", "text": "Water has the formula H2O. At standard atmospheric pressure water boils at 100 degrees Celsius."},
+    {"id": "course", "filename": "course.md", "text": "# Course handbook\nThe research methods quiz takes place in room LAB-204 on Tuesday. Students should bring a notebook."},
+    {"id": "storage", "filename": "storage.txt", "text": "Qdrant stores vectors with payload metadata. The demo collection uses cosine distance. Upload files are kept separately from the vector database."}
+  ],
+  "questions": [
+    {"question": "What generates ATP?", "expected_document": "biology", "support": "Mitochondria generate ATP"},
+    {"question": "What does CACHE-721 mean?", "expected_document": "cache", "support": "cache entry has expired"},
+    {"question": "What protects state-changing requests?", "expected_document": "security", "support": "CSRF tokens"},
+    {"question": "How does Reciprocal Rank Fusion combine results?", "expected_document": "retrieval", "support": "constant plus rank"},
+    {"question": "Which room hosts the research methods quiz?", "expected_document": "course", "support": "LAB-204"},
+    {"question": "Which distance does the demo collection use?", "expected_document": "storage", "support": "cosine distance"},
+    {"question": "At what temperature does water boil?", "expected_document": "chemistry", "support": "100 degrees Celsius"},
+    {"question": "What is the largest planet?", "expected_document": "astronomy", "support": "Jupiter"}
+  ]
+}

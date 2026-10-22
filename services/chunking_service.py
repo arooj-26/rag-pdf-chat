@@ -33,7 +33,7 @@ def build_text_splitter(
     """
     return RecursiveCharacterTextSplitter(
         chunk_size=chunk_size or settings.chunk_size,
-        chunk_overlap=chunk_overlap or settings.chunk_overlap,
+        chunk_overlap=settings.chunk_overlap if chunk_overlap is None else chunk_overlap,
         length_function=len,
         separators=["\n\n", "\n", ". ", "? ", "! ", " ", ""],
     )
@@ -43,6 +43,7 @@ def chunk_document(
     extracted: ExtractedPDF,
     document_id: str,
     filename: str,
+    owner_id: str | None = None,
 ) -> List[LCDocument]:
     """
     Convert an ExtractedPDF into a flat list of LangChain Documents,
@@ -65,6 +66,10 @@ def chunk_document(
                 "document_name": filename,
                 "page": page.page_number,
                 "chunk_index": chunk_index,
+                "chunk_id": f"{document_id}:{chunk_index}",
+                "owner_id": owner_id,
+                "source_type": extracted.source_type,
+                "section": page.section,
             }
             all_chunks.append(LCDocument(page_content=chunk_text, metadata=metadata))
             chunk_index += 1

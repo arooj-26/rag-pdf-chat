@@ -25,7 +25,8 @@ from fastapi.templating import Jinja2Templates
 
 from config import get_settings
 from database import init_db
-from routers import chat, documents, health, upload
+from routers import auth, chat, documents, health, upload, search, learning, evaluation
+from services.request_guard import guard
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,7 +57,7 @@ app = FastAPI(
     description=(
         "A production-ready AI PDF Chat application. Upload PDF documents, "
         "and ask questions answered via Retrieval-Augmented Generation (RAG) "
-        "over your own documents, powered by LangChain, FAISS, and OpenAI."
+        "over your own documents, powered by LangChain, Qdrant, and OpenAI."
     ),
     version=settings.app_version,
     lifespan=lifespan,
@@ -77,6 +78,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # --- API routers ---
+app.middleware("http")(guard)
+app.include_router(auth.router)
+app.include_router(search.router)
+app.include_router(learning.router)
+app.include_router(evaluation.router)
 app.include_router(health.router)
 app.include_router(upload.router)
 app.include_router(documents.router)
@@ -89,17 +95,17 @@ app.include_router(chat.router)
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("index.html", {"request": request, "app_name": settings.app_name})
+    return templates.TemplateResponse(request, "index.html", {"app_name": settings.app_name})
 
 
 @app.get("/upload", response_class=HTMLResponse, include_in_schema=False)
 async def upload_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("upload.html", {"request": request, "app_name": settings.app_name})
+    return templates.TemplateResponse(request, "upload.html", {"app_name": settings.app_name})
 
 
 @app.get("/chat", response_class=HTMLResponse, include_in_schema=False)
 async def chat_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("chat.html", {"request": request, "app_name": settings.app_name})
+    return templates.TemplateResponse(request, "chat.html", {"app_name": settings.app_name})
 
 
 # ---------------------------------------------------------------------------
@@ -108,11 +114,25 @@ async def chat_page(request: Request) -> HTMLResponse:
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    logger.error("Unhandled request error type=%s", type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred. Please try again."},
     )
+
+
+
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/register", response_class=HTMLResponse, include_in_schema=False)
+async def auth_page(request: Request):
+    return templates.TemplateResponse(request, "auth.html", {"app_name": settings.app_name, "register": request.url.path == "/register"})
+
+
+@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/study", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard(request: Request):
+    return templates.TemplateResponse(request, "dashboard.html", {"app_name": settings.app_name})
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ Kubernetes, load balancers) and for quick manual sanity checks.
 """
 
 from datetime import datetime, timezone
+import os
 
 from fastapi import APIRouter
 
@@ -20,6 +21,7 @@ settings = get_settings()
 def health_check() -> HealthResponse:
     """Report application status and basic configuration diagnostics."""
     return HealthResponse(
+        instance_id=os.getenv("RESEARCH_RUN_ID"),
         status="ok",
         app_name=settings.app_name,
         version=settings.app_version,

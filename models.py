@@ -9,7 +9,7 @@ SQLAlchemy ORM models representing the persistent data model:
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -25,6 +25,9 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    owner_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    source_type: Mapped[str] = mapped_column(String(16), default="pdf")
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(512), nullable=False)
     file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -35,9 +38,9 @@ class Document(Base):
     # status in {"processing", "ready", "failed"}
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     summary: Mapped[str] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
     conversations: Mapped[list["Conversation"]] = relationship(
@@ -48,6 +51,7 @@ class Document(Base):
         return {
             "id": self.id,
             "filename": self.original_filename,
+            "source_type": self.source_type,
             "file_size_bytes": self.file_size_bytes,
             "page_count": self.page_count,
             "chunk_count": self.chunk_count,
@@ -63,13 +67,14 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    owner_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     document_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("documents.id"), nullable=True
     )
     title: Mapped[str] = mapped_column(String(255), default="New Conversation")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
     document: Mapped["Document"] = relationship(back_populates="conversations")
@@ -100,7 +105,7 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # "user" | "assistant" | "system"
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[str] = mapped_column(Text, nullable=True)  # JSON-encoded list of source chunks
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
 
@@ -115,3 +120,38 @@ class ChatMessage(Base):
             "sources": json.loads(self.sources) if self.sources else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Chunk(Base):
+    __tablename__ = "chunks"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text)
+
+
+class LearningArtifact(Base):
+    __tablename__ = "learning_artifacts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    content_json: Mapped[str] = mapped_column(Text)
+    sources_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

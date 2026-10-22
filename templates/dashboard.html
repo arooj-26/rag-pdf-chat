@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Research workspace · {{ app_name }}</title><link rel="stylesheet" href="/static/css/style.css"><link rel="stylesheet" href="/static/css/research.css"></head>
+<body><script src="/static/js/theme.js"></script><script src="/static/js/auth.js"></script>
+<header class="research-nav"><a href="/dashboard">{{ app_name }}</a><nav aria-label="Main navigation"><a href="/upload">Upload</a><a href="/chat">Chat</a><a href="#study">Study tools</a><button data-logout class="btn btn-secondary btn-sm">Sign out</button><button class="theme-toggle" data-theme-toggle aria-label="Change theme"><span data-theme-icon></span><span data-theme-label></span></button></nav></header>
+<main class="research-workspace"><h1>Your research workspace</h1><p>Search your sources. Build understanding. Review what matters.</p>
+<p id="status" role="status" aria-live="polite"></p>
+<div class="research-grid"><section class="research-card" aria-labelledby="library-heading"><h2 id="library-heading">Document library</h2>
+<label for="library-filter">Filter by filename</label><input id="library-filter" type="search" placeholder="Find a document…">
+<p class="hint">Select sources for search and study tools. Upload supports PDF, DOCX, TXT and Markdown.</p><a href="/upload" class="btn btn-primary btn-sm">Upload documents</a>
+<div id="library"></div></section>
+<div><section class="research-card"><h2>Search documents</h2><form id="search-form"><label for="query">Search query</label><input id="query" required maxlength="2000" placeholder="A concept, term, or identifier">
+<label for="mode">Retrieval mode</label><select id="mode"><option value="hybrid">Hybrid (semantic + keyword)</option><option value="semantic">Semantic</option><option value="keyword">Keyword (BM25)</option></select><button class="btn btn-primary">Search selected sources</button></form><div id="search-results"></div></section>
+<section class="research-card" id="study"><h2>Study tools</h2><form id="study-form"><label for="kind">Generate</label><select id="kind"><option value="quiz">Multiple-choice quiz</option><option value="flashcards">Flashcards</option><option value="notes">Study notes</option></select>
+<label for="topic">Topic</label><input id="topic" value="main concepts and definitions" maxlength="1000" required>
+<div class="form-row"><div><label for="count">Items</label><input id="count" type="number" min="1" max="20" value="5" required></div><div><label for="difficulty">Difficulty</label><select id="difficulty"><option>easy</option><option selected>medium</option><option>hard</option></select></div></div>
+<label for="style">Flashcard style</label><select id="style"><option value="question-answer">Question and answer</option><option value="term-definition">Term and definition</option><option value="concept-revision">Concept revision</option></select>
+<button type="submit" class="btn btn-primary">Generate from selected documents</button><p id="study-status" role="status" aria-live="polite" aria-atomic="true"></p></form><p class="hint">Generated content includes source evidence. Verify important facts against your documents.</p><div id="study-results"></div></section>
+<section class="research-card"><h2>Saved study materials</h2><div id="saved"></div></section>
+<section class="research-card"><h2>Retrieval evaluation</h2><p class="hint">Measured using eight safe sample documents and deterministic test embeddings. These scores demonstrate pipeline mechanics, not OpenAI answer quality.</p><button id="evaluation-button" class="btn btn-secondary">View measured results</button><div id="evaluation-results"></div></section>
+</div></div></main><script src="/static/js/dashboard.js?v=2"></script></body></html>

@@ -21,6 +21,7 @@ feature that sits alongside, rather than inside, the LangChain chain.
 from __future__ import annotations
 
 import logging
+import asyncio
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import AsyncIterator, List, Optional
@@ -56,12 +57,13 @@ def _get_chat_llm(streaming: bool, temperature: float = 0.2) -> ChatOpenAI:
         api_key=settings.openai_api_key or None,
         temperature=temperature,
         streaming=streaming,
+        timeout=settings.request_timeout, max_retries=2, max_tokens=settings.max_output_tokens,
     )
 
 
 @lru_cache
 def _get_openai_client() -> OpenAI:
-    return OpenAI(api_key=settings.openai_api_key or None)
+    return OpenAI(api_key=settings.openai_api_key or None, timeout=settings.request_timeout, max_retries=2)
 
 
 # ---------------------------------------------------------------------------
@@ -76,8 +78,9 @@ def format_docs_for_context(docs: List[LCDocument]) -> str:
     parts = []
     for i, doc in enumerate(docs, start=1):
         name = doc.metadata.get("document_name", "document")
-        page = doc.metadata.get("page", "?")
-        parts.append(f"[Source {i} | {name} | page {page}]\n{doc.page_content.strip()}")
+        page = doc.metadata.get("page")
+        location = f"page {page}" if page else f"section {doc.metadata.get('section') or 'text'}, chunk {doc.metadata.get('chunk_index')}"
+        parts.append(f"[Source {i} | {name} | {location}]\n{doc.page_content.strip()}")
     return "\n\n".join(parts)
 
 
@@ -95,6 +98,9 @@ def docs_to_source_dicts(docs: List[LCDocument]) -> List[dict]:
                 "document_name": doc.metadata.get("document_name", "document"),
                 "page": doc.metadata.get("page"),
                 "chunk_index": doc.metadata.get("chunk_index"),
+                "chunk_id": doc.metadata.get("chunk_id"),
+                "section": doc.metadata.get("section"),
+                "source_type": doc.metadata.get("source_type"),
                 "text_snippet": snippet,
             }
         )
@@ -115,7 +121,7 @@ def _condense_question(question: str, chat_history: List[BaseMessage]) -> str:
         rewritten = chain.invoke({"question": question, "chat_history": chat_history})
         return rewritten.strip() or question
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Question condensation failed, falling back to raw question: %s", exc)
+        logger.warning("Question condensation failed error_type=%s", type(exc).__name__)
         return question
 
 
@@ -134,9 +140,10 @@ def retrieve_context(
     chat_history: List[BaseMessage],
     document_id: Optional[str] = None,
     k: Optional[int] = None,
+    *, owner_id: str,
 ) -> RetrievalResult:
     standalone_question = _condense_question(question, chat_history)
-    retriever = get_retriever(document_id=document_id, k=k)
+    retriever = get_retriever(document_id=document_id, k=k, owner_id=owner_id)
     documents = retriever.invoke(standalone_question)
     return RetrievalResult(standalone_question=standalone_question, documents=documents)
 
@@ -149,9 +156,12 @@ def generate_answer(
     question: str,
     chat_history: List[BaseMessage],
     document_id: Optional[str] = None,
+    *, owner_id: str,
 ) -> tuple[str, List[dict]]:
     """Run the full RAG pipeline and return (answer_text, sources)."""
-    retrieval = retrieve_context(question, chat_history, document_id=document_id)
+    retrieval = retrieve_context(question, chat_history, document_id=document_id, owner_id=owner_id)
+    if not retrieval.documents:
+        return "I could not find supporting information in your selected documents.", []
     context = format_docs_for_context(retrieval.documents)
 
     llm = _get_chat_llm(streaming=False)
@@ -175,6 +185,7 @@ async def generate_answer_stream(
     question: str,
     chat_history: List[BaseMessage],
     document_id: Optional[str] = None,
+    *, owner_id: str,
 ) -> AsyncIterator[dict]:
     """
     Async generator that first yields a single 'sources' event, then a
@@ -182,11 +193,16 @@ async def generate_answer_stream(
     finally a 'done' event. Designed to be consumed directly by an SSE
     endpoint.
     """
-    retrieval = retrieve_context(question, chat_history, document_id=document_id)
+    retrieval = await asyncio.to_thread(retrieve_context, question, chat_history, document_id=document_id, owner_id=owner_id)
     sources = docs_to_source_dicts(retrieval.documents)
 
     yield {"type": "sources", "sources": sources}
 
+    if not retrieval.documents:
+        answer = "I could not find supporting information in your selected documents."
+        yield {"type": "token", "content": answer}
+        yield {"type": "done", "full_answer": answer, "sources": []}
+        return
     context = format_docs_for_context(retrieval.documents)
     llm = _get_chat_llm(streaming=True)
     chain = RAG_PROMPT | llm | StrOutputParser()
@@ -204,8 +220,9 @@ async def generate_answer_stream(
                 full_answer_parts.append(token)
                 yield {"type": "token", "content": token}
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Streaming generation failed")
-        yield {"type": "error", "message": f"Generation failed: {exc}"}
+        logger.warning("Streaming generation failed error_type=%s", type(exc).__name__)
+        from services.errors import provider_error
+        yield {"type": "error", "message": provider_error(exc).detail}
         return
 
     yield {"type": "done", "full_answer": "".join(full_answer_parts), "sources": sources}
@@ -268,6 +285,7 @@ def generate_structured_summary(document_text: str, max_key_points: int = 5) -> 
             {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
             {"role": "user", "content": build_summary_user_prompt(truncated_text, max_key_points)},
         ],
+        max_output_tokens=settings.max_output_tokens,
         text={
             "format": {
                 "type": "json_schema",

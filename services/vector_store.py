@@ -1,166 +1,110 @@
-"""
-services/vector_store.py
---------------------------
-Manages a single, persistent FAISS vector store shared across all
-uploaded documents. Chunks are tagged with `document_id` metadata so
-that retrieval can optionally be scoped to one document, while still
-allowing "search across everything I've uploaded" style queries.
-
-The index is persisted to disk (`vector_store_dir`) so it survives
-application restarts, and is protected by a lock to avoid concurrent
-read/modify/write races when multiple requests touch it at once.
-"""
-
-from __future__ import annotations
-
-import logging
-import threading
-from pathlib import Path
-from typing import List, Optional
-
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document as LCDocument
-
+"""Qdrant adapter. Every operation requires an explicit owner scope."""
+from functools import lru_cache
+from uuid import UUID, uuid5, NAMESPACE_URL
+from typing import Protocol
+from langchain_core.documents import Document
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient, models
 from config import get_settings
 from services.embedding_service import get_embeddings
-
-logger = logging.getLogger(__name__)
-settings = get_settings()
-
-_INDEX_NAME = "faiss_index"
-_lock = threading.RLock()
-
-_vectorstore_cache: Optional[FAISS] = None
+from services.errors import IndexingServiceError
 
 
-class VectorStoreError(Exception):
-    """Raised for unrecoverable vector store operations."""
+class VectorStoreError(RuntimeError):
+    pass
 
 
-def _index_path() -> Path:
-    return settings.vector_store_dir
+class VectorBackend(Protocol):
+    def ingest(self, chunks: list[Document]) -> list[str]: ...
+    def search(self, query: str, owner_id: str, document_ids: list[str], k: int) -> list[Document]: ...
+    def delete(self, document_id: str, owner_id: str) -> None: ...
 
 
-def _index_exists() -> bool:
-    path = _index_path()
-    return (path / f"{_INDEX_NAME}.faiss").exists() and (path / f"{_INDEX_NAME}.pkl").exists()
+def point_id(document_id: str, index: int) -> str:
+    return str(uuid5(NAMESPACE_URL, f"research:{document_id}:{index}"))
 
 
-def _load_from_disk() -> Optional[FAISS]:
-    if not _index_exists():
-        return None
-    try:
-        return FAISS.load_local(
-            str(_index_path()),
-            get_embeddings(),
-            index_name=_INDEX_NAME,
-            allow_dangerous_deserialization=True,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to load FAISS index from disk: %s", exc)
-        return None
+def scope_filter(owner_id: str, document_ids: list[str]) -> models.Filter:
+    if not owner_id:
+        raise ValueError("An authenticated owner is required")
+    return models.Filter(must=[
+        models.FieldCondition(key="metadata.owner_id", match=models.MatchValue(value=owner_id)),
+        models.FieldCondition(key="metadata.document_id", match=models.MatchAny(any=document_ids)),
+    ])
 
 
-def _save_to_disk(vs: FAISS) -> None:
-    vs.save_local(str(_index_path()), index_name=_INDEX_NAME)
+class QdrantBackend:
+    def __init__(self, client, embeddings, collection: str, dimensions: int):
+        self.client, self.embeddings = client, embeddings
+        self.collection, self.dimensions = collection, dimensions
 
+    def ensure_collection(self) -> None:
+        if not self.client.collection_exists(self.collection):
+            try:
+                self.client.create_collection(self.collection, vectors_config=models.VectorParams(size=self.dimensions, distance=models.Distance.COSINE))
+            except Exception:
+                # Another worker may have created the collection; validate it below.
+                if not self.client.collection_exists(self.collection):
+                    raise
+        config = self.client.get_collection(self.collection).config.params.vectors
+        if not isinstance(config, models.VectorParams) or config.size != self.dimensions or config.distance != models.Distance.COSINE:
+            raise VectorStoreError("Qdrant dimensions or distance mismatch; use a new collection and reindex.")
 
-def get_vectorstore(create_if_missing: bool = False) -> Optional[FAISS]:
-    """Return the process-wide FAISS vector store, loading it from disk
-    on first access. Returns None if no index exists yet and
-    `create_if_missing` is False."""
-    global _vectorstore_cache
-
-    with _lock:
-        if _vectorstore_cache is not None:
-            return _vectorstore_cache
-
-        vs = _load_from_disk()
-        if vs is None and create_if_missing:
-            # Bootstrap an empty index with a throwaway document, then
-            # immediately remove it, so we have a valid FAISS structure
-            # to append to later.
-            placeholder = LCDocument(
-                page_content="pdf-chat vector store initialized",
-                metadata={"document_id": "__init__", "bootstrap": True},
-            )
-            vs = FAISS.from_documents([placeholder], get_embeddings())
-            ids_to_remove = [
-                doc_id
-                for doc_id, doc in vs.docstore._dict.items()  # noqa: SLF001
-                if doc.metadata.get("bootstrap")
-            ]
-            if ids_to_remove:
-                vs.delete(ids_to_remove)
-            _save_to_disk(vs)
-
-        _vectorstore_cache = vs
-        return _vectorstore_cache
-
-
-def add_document_chunks(chunks: List[LCDocument]) -> List[str]:
-    """Embed and add a batch of chunks (typically all chunks belonging
-    to one uploaded document) to the shared vector store, persisting
-    the updated index to disk. Returns the generated chunk ids."""
-    if not chunks:
-        return []
-
-    with _lock:
-        vs = get_vectorstore(create_if_missing=True)
-        if vs is None:
-            raise VectorStoreError("Vector store could not be initialized.")
-
-        ids = vs.add_documents(chunks)
-        _save_to_disk(vs)
+    def ingest(self, chunks: list[Document]) -> list[str]:
+        if not chunks:
+            return []
+        if any(not d.metadata.get("owner_id") or not d.metadata.get("document_id") for d in chunks):
+            raise ValueError("All chunks need owner and document metadata")
+        # Finish embedding before any vector writes, avoiding partial embedding batches.
+        try:
+            vectors = self.embeddings.embed_documents([d.page_content for d in chunks])
+        except Exception as exc:
+            raise IndexingServiceError("embeddings", exc) from exc
+        if len(vectors) != len(chunks) or any(len(v) != self.dimensions for v in vectors):
+            raise VectorStoreError("Embedding dimensions do not match the collection.")
+        try:
+            self.ensure_collection()
+            ids = [point_id(d.metadata["document_id"], d.metadata["chunk_index"]) for d in chunks]
+            points = [models.PointStruct(id=i, vector=v, payload={"page_content": d.page_content, "metadata": d.metadata}) for i, v, d in zip(ids, vectors, chunks)]
+            for start in range(0, len(points), 64):
+                self.client.upsert(self.collection, points[start:start+64], wait=True)
+        except Exception as exc:
+            raise IndexingServiceError("qdrant", exc) from exc
         return ids
 
+    def search(self, query: str, owner_id: str, document_ids: list[str], k: int) -> list[Document]:
+        filters = scope_filter(owner_id, document_ids)
+        if not document_ids:
+            return []
+        self.ensure_collection()
+        vector = self.embeddings.embed_query(query)
+        if len(vector) != self.dimensions:
+            raise VectorStoreError("Query embedding dimensions mismatch.")
+        store = QdrantVectorStore(client=self.client, collection_name=self.collection,
+            embedding=self.embeddings, validate_embeddings=False, validate_collection_config=False)
+        return store.similarity_search_by_vector(vector, k=k, filter=filters)
 
-def delete_document(document_id: str) -> int:
-    """Remove all chunks belonging to `document_id` from the vector
-    store. Returns the number of chunks removed."""
-    with _lock:
-        vs = get_vectorstore(create_if_missing=False)
-        if vs is None:
-            return 0
-
-        ids_to_remove = [
-            doc_id
-            for doc_id, doc in vs.docstore._dict.items()  # noqa: SLF001
-            if doc.metadata.get("document_id") == document_id
-        ]
-        if not ids_to_remove:
-            return 0
-
-        vs.delete(ids_to_remove)
-        _save_to_disk(vs)
-        return len(ids_to_remove)
+    def delete(self, document_id: str, owner_id: str) -> None:
+        filters = scope_filter(owner_id, [document_id])
+        if self.client.collection_exists(self.collection):
+            self.client.delete(self.collection, models.FilterSelector(filter=filters), wait=True)
 
 
-def similarity_search(
-    query: str,
-    k: int = 4,
-    document_id: Optional[str] = None,
-) -> List[LCDocument]:
-    """Run a similarity search against the shared vector store,
-    optionally filtered to a single document."""
-    vs = get_vectorstore(create_if_missing=False)
-    if vs is None:
-        return []
-
-    search_kwargs = {}
-    if document_id:
-        search_kwargs["filter"] = {"document_id": document_id}
-
-    # Over-fetch a little when filtering, since FAISS applies the
-    # metadata filter after the nearest-neighbor search.
-    fetch_k = k * 4 if document_id else k
-    results = vs.similarity_search(query, k=fetch_k, **search_kwargs)
-    return results[:k]
+@lru_cache
+def get_backend() -> QdrantBackend:
+    settings = get_settings()
+    embeddings = get_embeddings()
+    try:
+        client = QdrantClient(path=settings.qdrant_path) if settings.qdrant_path else QdrantClient(
+            url=settings.qdrant_url, api_key=settings.qdrant_api_key or None, timeout=int(settings.request_timeout))
+    except Exception as exc:
+        raise IndexingServiceError("qdrant", exc) from exc
+    return QdrantBackend(client, embeddings, settings.qdrant_collection, settings.embedding_dimensions)
 
 
-def reset_cache() -> None:
-    """Clear the in-memory cache, forcing a reload from disk on next
-    access. Mainly useful for tests."""
-    global _vectorstore_cache
-    with _lock:
-        _vectorstore_cache = None
+def add_document_chunks(chunks: list[Document]) -> list[str]:
+    return get_backend().ingest(chunks)
+
+
+def delete_document(document_id: str, owner_id: str) -> None:
+    get_backend().delete(document_id, owner_id)

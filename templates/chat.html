@@ -11,6 +11,7 @@
 </head>
 <body>
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/auth.js"></script>
 
   <div class="app-shell">
     <aside class="sidebar">
@@ -22,6 +23,8 @@
       <div class="sidebar-nav">
         <a href="/chat" class="nav-link active">&#128172; Chat</a>
         <a href="/upload" class="nav-link">&#11014;&#65039; Upload</a>
+        <a href="/dashboard" class="nav-link">Research workspace</a>
+        <button class="btn btn-secondary btn-sm" data-logout>Sign out</button>
         <a href="/docs" class="nav-link">&#128220; API Docs</a>
       </div>
 
@@ -52,7 +55,7 @@
       <div class="topbar">
         <div class="topbar-title">
           <button class="mobile-menu-btn" id="mobile-menu-btn">&#9776;</button>
-          PDF Chat
+          {{ app_name }}
           <span class="topbar-sub">Retrieval-Augmented Generation</span>
         </div>
       </div>
@@ -63,7 +66,7 @@
             <div class="empty-state" id="empty-state">
               <div class="icon">&#128172;</div>
               <h3>Ask anything about your documents</h3>
-              <p>Upload a PDF and start a conversation. Answers are grounded in your document's content, with citations.</p>
+              <p>Upload a document and start a conversation. Answers are grounded in your document's content, with citations.</p>
               <div class="suggested-questions">
                 <div class="suggested-chip">Summarize this document in 3 bullet points</div>
                 <div class="suggested-chip">What are the key takeaways?</div>

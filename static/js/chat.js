@@ -32,7 +32,7 @@
     documents: [],
     conversations: [],
     currentConversationId: null,
-    currentDocumentId: null, // null = search across all documents
+    currentDocumentId: new URLSearchParams(location.search).get("document_id") || null, // null = all authorized documents
     isStreaming: false,
   };
 
@@ -271,7 +271,7 @@
       .map(
         (s) => `
         <div class="source-chip">
-          <div class="source-title"><span>${escapeHtml(s.document_name)}</span><span>p.${s.page ?? "?"}</span></div>
+          <div class="source-title"><span>${escapeHtml(s.document_name)}</span><span>${s.page ? "p." + s.page : "chunk " + s.chunk_index}</span></div>
           <div class="source-snippet">${escapeHtml(s.text_snippet)}</div>
         </div>`
       )
@@ -477,6 +477,7 @@
   if (docSelect) {
     docSelect.addEventListener("change", () => {
       state.currentDocumentId = docSelect.value || null;
+      startNewConversation();
       renderDocumentSidebar();
     });
   }

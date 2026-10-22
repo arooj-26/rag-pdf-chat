@@ -1,0 +1,315 @@
+{
+  "measured_at": "2026-10-21T14:07:34.678176+00:00",
+  "k": 3,
+  "document_count": 8,
+  "question_count": 8,
+  "embedding_model": "deterministic SHA256 token hash fixture (64 dimensions)",
+  "scope": "Offline retrieval mechanics only; semantic mode uses toy dense embeddings, not OpenAI. Not an upstream FAISS benchmark.",
+  "answer_groundedness": null,
+  "generation_latency_ms": null,
+  "generation_note": "No LLM calls made; generated-answer faithfulness and latency are not measured.",
+  "results": {
+    "semantic": {
+      "hit_rate_at_k": 1,
+      "mrr_at_k": 0.7916666666666666,
+      "support_rate_at_k": 1,
+      "mean_retrieval_latency_ms": 5.857,
+      "questions": [
+        {
+          "question": "What generates ATP?",
+          "retrieved": [
+            "biology",
+            "security",
+            "course"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 11.046
+        },
+        {
+          "question": "What does CACHE-721 mean?",
+          "retrieved": [
+            "biology",
+            "retrieval",
+            "cache"
+          ],
+          "hit": true,
+          "reciprocal_rank": 0.3333333333333333,
+          "support_found": true,
+          "retrieval_latency_ms": 2.952
+        },
+        {
+          "question": "What protects state-changing requests?",
+          "retrieved": [
+            "security",
+            "course",
+            "chemistry"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.458
+        },
+        {
+          "question": "How does Reciprocal Rank Fusion combine results?",
+          "retrieved": [
+            "cache",
+            "retrieval",
+            "astronomy"
+          ],
+          "hit": true,
+          "reciprocal_rank": 0.5,
+          "support_found": true,
+          "retrieval_latency_ms": 4.006
+        },
+        {
+          "question": "Which room hosts the research methods quiz?",
+          "retrieved": [
+            "course",
+            "chemistry",
+            "astronomy"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.848
+        },
+        {
+          "question": "Which distance does the demo collection use?",
+          "retrieved": [
+            "cache",
+            "storage",
+            "astronomy"
+          ],
+          "hit": true,
+          "reciprocal_rank": 0.5,
+          "support_found": true,
+          "retrieval_latency_ms": 12.514
+        },
+        {
+          "question": "At what temperature does water boil?",
+          "retrieved": [
+            "chemistry",
+            "security",
+            "retrieval"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 7.16
+        },
+        {
+          "question": "What is the largest planet?",
+          "retrieved": [
+            "astronomy",
+            "cache",
+            "security"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 3.874
+        }
+      ]
+    },
+    "keyword": {
+      "hit_rate_at_k": 1,
+      "mrr_at_k": 1.0,
+      "support_rate_at_k": 1,
+      "mean_retrieval_latency_ms": 2.079,
+      "questions": [
+        {
+          "question": "What generates ATP?",
+          "retrieved": [
+            "biology"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.246
+        },
+        {
+          "question": "What does CACHE-721 mean?",
+          "retrieved": [
+            "cache"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 1.699
+        },
+        {
+          "question": "What protects state-changing requests?",
+          "retrieved": [
+            "security"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 1.765
+        },
+        {
+          "question": "How does Reciprocal Rank Fusion combine results?",
+          "retrieved": [
+            "retrieval"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 1.757
+        },
+        {
+          "question": "Which room hosts the research methods quiz?",
+          "retrieved": [
+            "course",
+            "astronomy",
+            "cache"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 1.708
+        },
+        {
+          "question": "Which distance does the demo collection use?",
+          "retrieved": [
+            "storage",
+            "biology",
+            "cache"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 1.692
+        },
+        {
+          "question": "At what temperature does water boil?",
+          "retrieved": [
+            "chemistry"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.952
+        },
+        {
+          "question": "What is the largest planet?",
+          "retrieved": [
+            "astronomy",
+            "cache",
+            "storage"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.817
+        }
+      ]
+    },
+    "hybrid": {
+      "hit_rate_at_k": 1,
+      "mrr_at_k": 1.0,
+      "support_rate_at_k": 1,
+      "mean_retrieval_latency_ms": 4.183,
+      "questions": [
+        {
+          "question": "What generates ATP?",
+          "retrieved": [
+            "biology",
+            "security",
+            "course"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 8.237
+        },
+        {
+          "question": "What does CACHE-721 mean?",
+          "retrieved": [
+            "cache",
+            "biology",
+            "retrieval"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 7.115
+        },
+        {
+          "question": "What protects state-changing requests?",
+          "retrieved": [
+            "security",
+            "course",
+            "chemistry"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 3.131
+        },
+        {
+          "question": "How does Reciprocal Rank Fusion combine results?",
+          "retrieved": [
+            "retrieval",
+            "cache",
+            "astronomy"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.841
+        },
+        {
+          "question": "Which room hosts the research methods quiz?",
+          "retrieved": [
+            "course",
+            "astronomy",
+            "chemistry"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.885
+        },
+        {
+          "question": "Which distance does the demo collection use?",
+          "retrieved": [
+            "storage",
+            "cache",
+            "biology"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 3.041
+        },
+        {
+          "question": "At what temperature does water boil?",
+          "retrieved": [
+            "chemistry",
+            "security",
+            "retrieval"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 3.223
+        },
+        {
+          "question": "What is the largest planet?",
+          "retrieved": [
+            "astronomy",
+            "cache",
+            "storage"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "support_found": true,
+          "retrieval_latency_ms": 2.987
+        }
+      ]
+    }
+  }
+}

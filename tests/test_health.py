@@ -50,24 +50,24 @@ def test_chat_page_loads():
     assert response.status_code == 200
 
 
-def test_list_documents_empty_ok():
-    response = client.get("/api/documents")
+def test_list_documents_empty_ok(signed_client):
+    response = signed_client.get("/api/documents")
     assert response.status_code == 200
     data = response.json()
     assert "documents" in data
     assert isinstance(data["total"], int)
 
 
-def test_upload_rejects_non_pdf():
-    response = client.post(
+def test_upload_rejects_non_pdf(signed_client):
+    response = signed_client.post(
         "/api/upload",
-        files={"files": ("test.txt", b"hello world", "text/plain")},
+        files={"files": ("test.exe", b"hello world", "application/octet-stream")},
     )
-    assert response.status_code == 400
+    assert response.status_code == 415
 
 
-def test_get_nonexistent_document_404():
-    response = client.get("/api/documents/does-not-exist")
+def test_get_nonexistent_document_404(signed_client):
+    response = signed_client.get("/api/documents/does-not-exist")
     assert response.status_code == 404
 
 
@@ -81,3 +81,13 @@ def test_openapi_schema_available():
     assert response.status_code == 200
     schema = response.json()
     assert schema["info"]["title"]
+
+
+def test_new_pages_and_report(signed_client):
+    for path in ["/login", "/register", "/dashboard", "/study"]:
+        response = signed_client.get(path)
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+    report = signed_client.get("/api/evaluation")
+    assert report.status_code == 200
+    assert report.json()["answer_groundedness"] is None

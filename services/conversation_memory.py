@@ -22,7 +22,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
 
 from config import get_settings
-from models import ChatMessage, Conversation
+from models import ChatMessage, Conversation, Document
+from services.security import owned
 
 settings = get_settings()
 
@@ -32,14 +33,22 @@ def get_or_create_conversation(
     conversation_id: Optional[str],
     document_id: Optional[str] = None,
     title: Optional[str] = None,
+    owner_id: str = "",
 ) -> Conversation:
     """Fetch an existing conversation by id, or create a new one."""
+    if not owner_id:
+        raise ValueError("Authenticated owner required")
+    if document_id:
+        owned(db, Document, document_id, owner_id)
     if conversation_id:
-        conversation = db.get(Conversation, conversation_id)
-        if conversation is not None:
-            return conversation
+        conversation = owned(db, Conversation, conversation_id, owner_id)
+        if document_id and document_id != conversation.document_id:
+            from fastapi import HTTPException
+            raise HTTPException(409, "Start a new conversation to change document scope.")
+        return conversation
 
     conversation = Conversation(
+        owner_id=owner_id,
         document_id=document_id,
         title=title or "New Conversation",
     )
@@ -106,8 +115,8 @@ def save_message(
     return message
 
 
-def list_conversations(db: Session, document_id: Optional[str] = None) -> List[Conversation]:
-    query = db.query(Conversation)
+def list_conversations(db: Session, document_id: Optional[str] = None, owner_id: str = "") -> List[Conversation]:
+    query = db.query(Conversation).filter(Conversation.owner_id == owner_id)
     if document_id:
         query = query.filter(Conversation.document_id == document_id)
     return query.order_by(Conversation.updated_at.desc()).all()

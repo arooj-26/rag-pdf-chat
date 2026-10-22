@@ -9,6 +9,7 @@
 </head>
 <body>
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/auth.js"></script>
 
   <div class="app-shell">
     <aside class="sidebar">
@@ -20,6 +21,8 @@
       <div class="sidebar-nav">
         <a href="/chat" class="nav-link">&#128172; Chat</a>
         <a href="/upload" class="nav-link active">&#11014;&#65039; Upload</a>
+        <a href="/dashboard" class="nav-link">Research workspace</a>
+        <button class="btn btn-secondary btn-sm" data-logout>Sign out</button>
         <a href="/docs" class="nav-link">&#128220; API Docs</a>
       </div>
 
@@ -45,17 +48,17 @@
       </div>
 
       <div class="upload-page">
-        <h2>Upload PDF documents</h2>
+        <h2>Upload documents</h2>
         <p class="subtitle">
-          Drop one or more PDF files below. Each document is text-extracted, chunked, embedded,
-          and indexed into the FAISS vector store — ready to chat with in seconds.
+          Drop one or more PDF, DOCX, TXT or Markdown files below. Each document is text-extracted, chunked, embedded,
+          and indexed into the Qdrant vector store — ready to chat with in seconds.
         </p>
 
         <div class="dropzone" id="dropzone">
           <div class="icon">&#11014;&#65039;</div>
-          <h3>Drag &amp; drop PDF files here</h3>
+          <h3>Drag &amp; drop documents here</h3>
           <p>or <button id="browse-btn" class="btn btn-secondary btn-sm" style="margin-top:10px;">browse files</button></p>
-          <input type="file" id="file-input" accept="application/pdf" multiple />
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" multiple />
         </div>
 
         <div class="upload-queue" id="upload-queue"></div>
@@ -63,7 +66,7 @@
     </main>
   </div>
 
-  <script src="/static/js/upload.js"></script>
+  <script src="/static/js/upload.js?v=2"></script>
   <script src="/static/js/chat.js"></script>
 </body>
 </html>

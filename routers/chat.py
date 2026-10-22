@@ -19,7 +19,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Conversation
+from models import Conversation, User
+from services.security import current_user, owned
+from services.errors import provider_error
 from schemas import (
     ChatMessageResponse,
     ChatRequest,
@@ -51,9 +53,9 @@ router = APIRouter(prefix="/api", tags=["Chat"])
     summary="List conversations",
 )
 def get_conversations(
-    document_id: Optional[str] = None, db: Session = Depends(get_db)
+    document_id: Optional[str] = None, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> ConversationListResponse:
-    conversations = list_conversations(db, document_id=document_id)
+    conversations = list_conversations(db, document_id=document_id, owner_id=user.id)
     return ConversationListResponse(
         conversations=[ConversationResponse.model_validate(c.to_dict()) for c in conversations],
         total=len(conversations),
@@ -67,10 +69,10 @@ def get_conversations(
     summary="Create a new conversation",
 )
 def create_conversation(
-    payload: ConversationCreateRequest, db: Session = Depends(get_db)
+    payload: ConversationCreateRequest, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> ConversationResponse:
     conversation = get_or_create_conversation(
-        db, conversation_id=None, document_id=payload.document_id, title=payload.title
+        db, conversation_id=None, document_id=payload.document_id, title=payload.title, owner_id=user.id
     )
     return ConversationResponse.model_validate(conversation.to_dict())
 
@@ -81,9 +83,9 @@ def create_conversation(
     summary="Get all messages in a conversation",
 )
 def get_conversation_messages(
-    conversation_id: str, db: Session = Depends(get_db)
+    conversation_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> List[ChatMessageResponse]:
-    conversation = db.get(Conversation, conversation_id)
+    conversation = owned(db, Conversation, conversation_id, user.id)
     if conversation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
     return [ChatMessageResponse.model_validate(m.to_dict()) for m in conversation.messages]
@@ -93,7 +95,8 @@ def get_conversation_messages(
     "/conversations/{conversation_id}",
     summary="Delete a conversation and its messages",
 )
-def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> dict:
+def delete_conversation(conversation_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    owned(db, Conversation, conversation_id, user.id)
     deleted = delete_conversation_service(db, conversation_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
@@ -105,9 +108,9 @@ def delete_conversation(conversation_id: str, db: Session = Depends(get_db)) -> 
 # ---------------------------------------------------------------------------
 
 @router.post("/chat", response_model=ChatResponse, summary="Ask a question (non-streaming)")
-def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+def chat(payload: ChatRequest, db: Session = Depends(get_db), user: User = Depends(current_user)) -> ChatResponse:
     conversation = get_or_create_conversation(
-        db, conversation_id=payload.conversation_id, document_id=payload.document_id
+        db, conversation_id=payload.conversation_id, document_id=payload.document_id, owner_id=user.id
     )
 
     history = load_chat_history(db, conversation.id)
@@ -115,14 +118,11 @@ def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
 
     try:
         answer_text, sources = generate_answer(
-            payload.message, history, document_id=payload.document_id
+            payload.message, history, document_id=conversation.document_id, owner_id=user.id
         )
     except Exception as exc:  # noqa: BLE001
-        logger.exception("RAG generation failed")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to generate an answer: {exc}",
-        ) from exc
+        logger.warning("RAG failed error_type=%s", type(exc).__name__)
+        raise provider_error(exc) from exc
 
     assistant_message = save_message(
         db, conversation.id, role="assistant", content=answer_text, sources=sources
@@ -144,9 +144,9 @@ def _sse_event(data: dict) -> str:
 
 
 @router.post("/chat/stream", summary="Ask a question (streamed via Server-Sent Events)")
-async def chat_stream(payload: ChatRequest, db: Session = Depends(get_db)) -> StreamingResponse:
+async def chat_stream(payload: ChatRequest, db: Session = Depends(get_db), user: User = Depends(current_user)) -> StreamingResponse:
     conversation = get_or_create_conversation(
-        db, conversation_id=payload.conversation_id, document_id=payload.document_id
+        db, conversation_id=payload.conversation_id, document_id=payload.document_id, owner_id=user.id
     )
     conversation_id = conversation.id
 
@@ -160,7 +160,7 @@ async def chat_stream(payload: ChatRequest, db: Session = Depends(get_db)) -> St
         final_sources: list = []
         try:
             async for event in generate_answer_stream(
-                payload.message, history, document_id=payload.document_id
+                payload.message, history, document_id=conversation.document_id, owner_id=user.id
             ):
                 if event["type"] == "sources":
                     final_sources = event["sources"]
@@ -170,12 +170,14 @@ async def chat_stream(payload: ChatRequest, db: Session = Depends(get_db)) -> St
                     yield _sse_event({"type": "token", "content": event["content"]})
                 elif event["type"] == "error":
                     yield _sse_event({"type": "error", "message": event["message"]})
+                    yield _sse_event({"type": "close"})
+                    return
                 elif event["type"] == "done":
                     full_answer = event.get("full_answer", full_answer)
                     final_sources = event.get("sources", final_sources)
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Streaming chat failed")
-            yield _sse_event({"type": "error", "message": str(exc)})
+            logger.warning("Streaming chat failed error_type=%s", type(exc).__name__)
+            yield _sse_event({"type": "error", "message": provider_error(exc).detail})
             yield _sse_event({"type": "close"})
             return
 

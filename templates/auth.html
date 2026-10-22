@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ 'Register' if register else 'Sign in' }} · {{ app_name }}</title>
+<link rel="stylesheet" href="/static/css/style.css"><link rel="stylesheet" href="/static/css/research.css"></head>
+<body><script src="/static/js/theme.js"></script><script src="/static/js/auth.js"></script>
+<main class="auth-panel"><a href="/">{{ app_name }}</a>
+<h1>{{ 'Create your account' if register else 'Welcome back' }}</h1>
+<p>Your documents, conversations, and study materials stay in your account.</p>
+<form id="auth-form" data-action="{{ 'register' if register else 'login' }}">
+<label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="{{ 'new-password' if register else 'current-password' }}" minlength="12" maxlength="128" required>
+<p class="hint">Use 12–128 characters.</p><button type="submit" class="btn btn-primary">{{ 'Create account' if register else 'Sign in' }}</button>
+<p id="auth-error" role="status" aria-live="polite"></p></form>
+<a href="{{ '/login' if register else '/register' }}">{{ 'Already registered? Sign in' if register else 'Create an account' }}</a>
+<button class="theme-toggle" data-theme-toggle><span data-theme-icon></span><span data-theme-label></span></button>
+</main></body></html>

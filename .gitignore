@@ -52,3 +52,11 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Private runtime state and local Qdrant
+data/qdrant/
+*.db-wal
+*.db-shm
+*.db-journal
+.env.*
+!.env.example

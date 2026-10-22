@@ -23,4 +23,11 @@ def get_embeddings() -> OpenAIEmbeddings:
     return OpenAIEmbeddings(
         model=settings.openai_embedding_model,
         api_key=settings.openai_api_key or None,
+        dimensions=settings.embedding_dimensions,
+        request_timeout=settings.request_timeout,
+        max_retries=2,
+        # The ingestion pipeline already bounds/splits text. Send those strings
+        # directly instead of downloading a separate tokenizer on first upload.
+        check_embedding_ctx_length=False,
+        chunk_size=64,
     )

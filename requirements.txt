@@ -1,44 +1,24 @@
-# ------------------------------------------------------------------
-# PDF Chat - Production Requirements
-# ------------------------------------------------------------------
-
-# Web framework
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
+# Compatible LangChain 0.3 components retain upstream LCEL without the monolithic package.
+fastapi==0.115.14
+uvicorn==0.34.3
 python-multipart==0.0.20
-jinja2==3.1.5
-
-# Settings & environment
-pydantic==2.10.4
-pydantic-settings==2.7.1
-python-dotenv==1.0.1
-
-# Database
-SQLAlchemy==2.0.36
-
-# LangChain ecosystem
-langchain==0.3.14
-langchain-community==0.3.14
-langchain-openai==0.2.14
-langchain-text-splitters==0.3.5
-langchain-core==0.3.29
-
-# Vector store
-faiss-cpu==1.9.0.post1
-
-# OpenAI SDK (Responses API)
-openai==1.59.6
-
-# PDF processing
-pypdf==5.1.0
-PyPDF2==3.0.1
-
-# Utilities
-tiktoken==0.8.0
-numpy==1.26.4
-aiofiles==24.1.0
-
-# Testing
-pytest==8.3.4
-pytest-asyncio==0.25.2
+jinja2==3.1.6
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-dotenv==1.2.4
+SQLAlchemy==2.0.46
+langchain-core==0.3.79
+langchain-openai==0.3.35
+langchain-text-splitters==0.3.11
+langchain-qdrant==0.2.1
+qdrant-client==1.15.1
+openai==1.109.1
+pypdf==6.1.3
+python-docx==1.2.0
+rank-bm25==0.2.2
+argon2-cffi==25.1.0
+itsdangerous==2.2.0
+pytesseract==0.3.13
+pypdfium2==5.0.0
+pytest==8.4.2
 httpx==0.28.1

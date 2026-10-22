@@ -22,6 +22,7 @@ class DocumentResponse(BaseModel):
 
     id: str
     filename: str = Field(description="Original filename as uploaded by the user")
+    source_type: str = "pdf"
     file_size_bytes: int
     page_count: int
     chunk_count: int
@@ -61,6 +62,9 @@ class SourceChunk(BaseModel):
     document_name: str
     page: Optional[int] = None
     chunk_index: Optional[int] = None
+    chunk_id: str | None = None
+    section: str | None = None
+    source_type: str | None = None
     text_snippet: str
 
 
@@ -119,6 +123,7 @@ class ChatResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class HealthResponse(BaseModel):
+    instance_id: Optional[str] = None
     status: str
     app_name: str
     version: str

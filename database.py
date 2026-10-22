@@ -43,7 +43,8 @@ def init_db() -> None:
     """Create all database tables. Safe to call multiple times."""
     import models  # noqa: F401  imported for side effect: registers models on Base
 
-    Base.metadata.create_all(bind=engine)
+    from migrations import migrate
+    migrate(engine)
 
 
 def get_db() -> Generator[Session, None, None]:

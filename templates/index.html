@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ app_name }} — Chat with your PDFs</title>
+  <title>{{ app_name }} — Research and study your documents</title>
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="icon" href="data:,">
 </head>
 <body>
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/auth.js"></script>
 
   <div class="landing">
     <nav class="landing-nav">
@@ -21,28 +22,28 @@
           <span data-theme-icon></span>
           <span data-theme-label></span>
         </button>
-        <a href="/chat" class="btn btn-primary btn-sm">Open Chat</a>
+        <a href="/login" class="btn btn-secondary btn-sm">Sign in</a><a href="/register" class="btn btn-primary btn-sm">Create account</a>
       </div>
     </nav>
 
     <section class="landing-hero">
-      <span class="badge">&#9889; Powered by LangChain + FAISS + OpenAI</span>
-      <h1>Chat with your PDFs like ChatGPT, grounded in your own documents</h1>
+      <span class="badge">&#9889; Powered by LangChain + Qdrant + OpenAI</span>
+      <h1>Research, understand, and study your documents</h1>
       <p>
         Upload contracts, research papers, manuals, or reports, and get accurate,
         cited answers in seconds — powered by Retrieval-Augmented Generation (RAG),
         streaming responses, and full conversation memory.
       </p>
       <div class="cta-group">
-        <a href="/upload" class="btn btn-primary">Upload a PDF</a>
-        <a href="/chat" class="btn btn-secondary">Start Chatting</a>
+        <a href="/upload" class="btn btn-primary">Upload a document</a>
+        <a href="/dashboard" class="btn btn-secondary">Research workspace</a>
         <a href="/docs" class="btn btn-secondary">API Docs</a>
       </div>
 
       <div class="feature-grid">
         <div class="feature-card">
           <div class="icon">&#128196;</div>
-          <h3>Multi-PDF Support</h3>
+          <h3>Multi-format support</h3>
           <p>Upload and manage multiple documents, and search across all of them or scope to one.</p>
         </div>
         <div class="feature-card">

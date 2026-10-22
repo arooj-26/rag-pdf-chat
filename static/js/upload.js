@@ -49,11 +49,11 @@
     const statusLabel = item.querySelector(".status-label");
     const fill = item.querySelector(".progress-bar-fill");
     if (status === "ready") {
-      statusLabel.innerHTML = `<span class="badge-pill ready">Ready</span> ${extra || ""}`;
+      statusLabel.innerHTML = `<span class="badge-pill ready">Ready</span> ${escapeHtml(String(extra || ""))}`;
       fill.style.width = "100%";
       fill.style.background = "var(--color-success)";
     } else if (status === "failed") {
-      statusLabel.innerHTML = `<span class="badge-pill failed">Failed</span> ${extra || ""}`;
+      statusLabel.innerHTML = `<span class="badge-pill failed">Failed</span> ${escapeHtml(String(extra || ""))}`;
       fill.style.width = "100%";
       fill.style.background = "var(--color-danger)";
     } else if (status === "processing") {
@@ -62,10 +62,14 @@
     }
   }
 
-  function uploadFiles(files) {
-    const validFiles = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf"));
+  async function uploadFiles(files) {
+    // FileList is live, and dropped files are only accessible during the event.
+    // Snapshot before yielding: the change handler clears the input immediately.
+    const selectedFiles = Array.from(files);
+    await window.researchAuth.ready;
+    const validFiles = selectedFiles.filter((f) => /\.(pdf|docx|txt|md)$/i.test(f.name));
     if (validFiles.length === 0) {
-      window.PDFChatToast?.show("Please select PDF files only.", "error");
+      window.PDFChatToast?.show("Select PDF, DOCX, TXT or Markdown files.", "error");
       return;
     }
 
@@ -77,6 +81,9 @@
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload");
+    xhr.setRequestHeader("X-CSRF-Token", window.researchAuth.csrf());
+    xhr.timeout = 300000;
+    xhr.ontimeout = () => items.forEach(({item}) => setItemStatus(item, "failed", "Upload timed out. Check the library before retrying."));
 
     xhr.upload.addEventListener("progress", (e) => {
       if (!e.lengthComputable) return;
@@ -98,7 +105,7 @@
           items.forEach(({ item, file }, idx) => {
             const doc = docs.find((d) => d.filename === file.name) || docs[idx];
             if (doc && doc.status === "ready") {
-              setItemStatus(item, "ready", `${doc.page_count} pages &middot; ${doc.chunk_count} chunks`);
+              setItemStatus(item, "ready", `${doc.page_count ? doc.page_count + " pages ? " : ""}${doc.chunk_count} chunks`);
             } else if (doc) {
               setItemStatus(item, "failed", doc.error_message || "Processing failed");
             } else {
